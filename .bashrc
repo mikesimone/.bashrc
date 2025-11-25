@@ -149,7 +149,7 @@ set_win_decor() {
             ;;
         sixofone|sixofone.*)
             # SixOfOne = magenta/pink tab, bright white text
-            TAB_IDX=5
+            TAB_IDX=13
             HOST_FG=97
             ;;
         WOPR|wopr|wopr.*)
@@ -205,12 +205,14 @@ fi
 
 ########## Prompt ##########
 # HOST_FG picked in set_win_decor; default if that somehow didn't run
+# Default if somehow not set by set_win_decor
 HOST_FG=${HOST_FG:-36}  # cyan
 
 if [ "$(id -u)" -eq 0 ]; then
     # root prompt
-    PS1='|\[\033[1;35m\]\t\[\033[0m\]| \[\e[1;31m\]\u\[\e['"$HOST_FG"'m\]@\h\[\e[0m\]:\[\e[1;32m\][\W]> \[\e[0m\]'
+    PS1='|\[\033[1;35m\]\t\[\033[0m\]| \[\e[1;31m\]\u\[\e[${HOST_FG}m\]@\h\[\e[0m\]:\[\e[1;32m\][\W]> \[\e[0m\]'
 else
     # user prompt
-    PS1='|\[\033[1;35m\]\t\[\033[0m\]| \[\e[1m\]\u\[\e['"$HOST_FG"'m\]@\h\[\e[0m\]:\[\e[1;32m\][\W]> \[\e[0m\]'
+    PS1='|\[\033[1;35m\]\t\[\033[0m\]| \[\e[1m\]\u\[\e[${HOST_FG}m\]@\h\[\e[0m\]:\[\e[1;32m\][\W]> \[\e[0m\]'
 fi
+
