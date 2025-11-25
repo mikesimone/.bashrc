@@ -9,7 +9,7 @@ esac
 ########## Self-update from GitHub ##########
 # This file is canonical in: mikesimone/.bashrc
 # Raw URL:
-BASHRC_REMOTE_URL="https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/.bashrc"
+BASHRC_REMOTE_URL="https://raw.githubusercontent.com/mikesimone/.bashrc/main/.bashrc"
 
 if command -v curl >/dev/null 2>&1 && [ -n "$BASHRC_REMOTE_URL" ]; then
     BASHRC_LOCAL="$HOME/.bashrc"
