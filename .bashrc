@@ -157,7 +157,7 @@ set_win_decor() {
             TAB_IDX=3
             HOST_FG=97
             ;;
-        dhcp|dhcp.*)
+        dhcphost|dhcphost.*)
             # dhcp host = blue tab, bright white text
             TAB_IDX=4
             HOST_FG=97
