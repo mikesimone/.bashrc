@@ -150,8 +150,8 @@ set_win_decor() {
             # WOPR = brown/yellow-ish
             printf '\e[2;15;3,|'
             ;;
-        dhcphost|dhcphost.*)
-            # dhcphost = blue
+        dhcp|dhcp.*)
+            # dhcp = blue
             printf '\e[2;15;4,|'
             ;;
         *)
