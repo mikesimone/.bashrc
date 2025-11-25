@@ -9,7 +9,7 @@ esac
 ########## Optional self-update from GitHub ##########
 # Put this same file in a GitHub repo and point BASHRC_REMOTE_URL at its raw URL.
 # Example: https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO/main/.bashrc
-BASHRC_REMOTE_URL="https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO/main/PATH/TO/bashrc"
+BASHRC_REMOTE_URL="https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/.bashrc"
 
 if command -v curl >/dev/null 2>&1 && [ -n "$BASHRC_REMOTE_URL" ]; then
     BASHRC_LOCAL="$HOME/.bashrc"
