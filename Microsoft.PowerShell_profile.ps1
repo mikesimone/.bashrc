@@ -1,32 +1,3 @@
-# --- Auto-sync $PROFILE from GitHub ---
-$profileUrl = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1'
-$localPath  = $PROFILE
-$tempPath   = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), 'Microsoft.PowerShell_profile.ps1.remote')
-
-try {
-    Invoke-WebRequest -Uri $profileUrl -OutFile $tempPath -ErrorAction Stop
-
-    if (-not (Test-Path $localPath)) {
-        Copy-Item $tempPath $localPath -Force
-    }
-    else {
-        $localHash  = (Get-FileHash -Path $localPath -Algorithm SHA256).Hash
-        $remoteHash = (Get-FileHash -Path $tempPath -Algorithm SHA256).Hash
-
-        if ($localHash -ne $remoteHash) {
-            Copy-Item $tempPath $localPath -Force
-        }
-    }
-
-    Remove-Item $tempPath -ErrorAction SilentlyContinue
-}
-catch {
-    Write-Verbose "Profile auto-update failed: $_"
-}
-# --- end auto-sync ---
-
-
-
 ############################################
 # Minimal AI Profile — Comfy-first (restored)
 ############################################
@@ -273,7 +244,7 @@ try {
 
 # --- PSReadLine QoL ---
 if (Get-Module -ListAvailable -Name PSReadLine) {
-    Import-Module PSReadLine
+    if (-not (Get-Module PSReadLine)) { Import-Module PSReadLine }
 
     # History-based prediction (like fish shell, but not awful)
     Set-PSReadLineOption -PredictionSource History
