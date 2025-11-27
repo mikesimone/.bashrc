@@ -94,7 +94,8 @@ function toast {
     }
     catch {
         # If toasts aren't available (or error), degrade gracefully
-        Write-Host "$Title: $Message"
+        Write-Host ("{0}: {1}" -f $Title, $Message)
+
     }
 }
 
