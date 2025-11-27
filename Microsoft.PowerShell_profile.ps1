@@ -4,7 +4,8 @@ $localPath  = $PROFILE
 $tempPath   = Join-Path $env:TEMP 'Microsoft.PowerShell_profile.ps1.remote'
 
 try {
-    Invoke-WebRequest -Uri $profileUrl -OutFile $tempPath -ErrorAction Stop
+    #Invoke-WebRequest -Uri $profileUrl -OutFile $tempPath -ErrorAction Stop
+    Invoke-WebRequest -Uri "$profileUrl?cb=$(Get-Random)" -OutFile $tempPath -Headers @{ "Cache-Control"="no-cache" } -ErrorAction Stop
 
     $remoteHash = (Get-FileHash $tempPath -Algorithm SHA256).Hash
     $localHash  = (Get-FileHash $localPath -Algorithm SHA256 -ErrorAction SilentlyContinue).Hash
