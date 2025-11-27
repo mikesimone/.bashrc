@@ -98,6 +98,7 @@ function toast {
     }
 }
 
+
 # =====================================================================
 # ComfyUI + AI helper functions
 # =====================================================================
@@ -105,7 +106,7 @@ function toast {
 function comfy {
     <#
         .SYNOPSIS
-        Launch ComfyUI in the comfy-312 venv with Sage attention and WAN defaults.
+        Launch ComfyUI in the comfy-312 venv with Sage attention.
 
         .PARAMETER Activate
         Just activate the venv and return (no ComfyUI launched).
@@ -169,7 +170,7 @@ function comfy {
     Push-Location "D:\AI\ComfyUI"
     Write-Host "`n ComfyUI (SageAttention, Py 3.12)..." -ForegroundColor Yellow
 
-    # Base Comfy arguments (WAN2.2 style) + any extras
+    # Base Comfy arguments + any extras
     $argv = @(
         '--use-sage-attention',
         '--listen',
