@@ -1,19 +1,15 @@
-# --- Auto-sync $PROFILE from GitHub ---
-$profileUrl = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1'
-$localPath  = $PROFILE
-$tempPath   = Join-Path $env:TEMP 'Microsoft.PowerShell_profile.ps1.remote'
+# --- Auto-sync $PROFILE from GitHub (do not edit this block) ---
+$localPath = $PROFILE
+$tempPath  = Join-Path $env:TEMP 'Microsoft.PowerShell_profile.ps1.remote'
 
 try {
-    # Build a clean cache-busted URL
+    # Build a clean, cache-busted URL
     $cacheBuster = Get-Random
-    $finalUrl    = "$profileUrl?cb=$cacheBuster"
+    $finalUrl    = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1?cb={0}' -f $cacheBuster
 
-    # Debug line (leave it for now; you can comment it later)
     Write-Host "[PROFILE] Fetching: $finalUrl" -ForegroundColor DarkGray
 
-    Invoke-WebRequest -Uri $finalUrl `
-                      -Headers @{ "Cache-Control" = "no-cache" } `
-                      -OutFile $tempPath -ErrorAction Stop
+    Invoke-WebRequest -Uri $finalUrl -OutFile $tempPath -Headers @{ 'Cache-Control' = 'no-cache' } -ErrorAction Stop
 
     $remoteHash = (Get-FileHash $tempPath -Algorithm SHA256).Hash
     $localHash  = (Get-FileHash $localPath -Algorithm SHA256 -ErrorAction SilentlyContinue).Hash
@@ -33,6 +29,7 @@ finally {
     Remove-Item $tempPath -ErrorAction SilentlyContinue
 }
 # --- end auto-sync ---
+
 
 
 
