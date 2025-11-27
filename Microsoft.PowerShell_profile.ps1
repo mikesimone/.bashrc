@@ -1,33 +1,32 @@
-# --- Auto-sync $PROFILE from GitHub ---
+# --- Auto-sync $PROFILE from GitHub (must be first) ---
 $profileUrl = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1'
 $localPath  = $PROFILE
-$tempPath   = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), 'Microsoft.PowerShell_profile.ps1.remote')
+$tempPath   = Join-Path $env:TEMP 'Microsoft.PowerShell_profile.ps1.remote'
 
 try {
     Invoke-WebRequest -Uri $profileUrl -OutFile $tempPath -ErrorAction Stop
 
-    $localHash  = (Get-FileHash $localPath -Algorithm SHA256 -ErrorAction SilentlyContinue).Hash
     $remoteHash = (Get-FileHash $tempPath -Algorithm SHA256).Hash
+    $localHash  = (Get-FileHash $localPath -Algorithm SHA256 -ErrorAction SilentlyContinue).Hash
 
-    if ($localHash -ne $remoteHash) {
+    if ($remoteHash -ne $localHash) {
+        Write-Host "[PROFILE] Remote change detected, updating and reloading..." -ForegroundColor Yellow
         Copy-Item $tempPath $localPath -Force
 
-        # Prevent recursive reloads
-        if (-not $env:PROFILE_RELOADING) {
-            $env:PROFILE_RELOADING = '1'
-            . $localPath
-            Write-host "Profile Updated"
-            Remove-Item Env:PROFILE_RELOADING
-            return   # ensures we don't run the rest of the old profile
-        }
+        # Reload the *new* profile and stop executing the old one
+        . $localPath
+        Remove-Item $tempPath -ErrorAction SilentlyContinue
+        return
     }
 }
 catch {
-    Write-Verbose "Profile auto-update failed: $_"
+    Write-Host "[PROFILE] Auto-update failed: $($_.Exception.Message)" -ForegroundColor DarkYellow
 }
-
-Remove-Item $tempPath -ErrorAction SilentlyContinue
+finally {
+    Remove-Item $tempPath -ErrorAction SilentlyContinue
+}
 # --- end auto-sync ---
+
 
 
 
