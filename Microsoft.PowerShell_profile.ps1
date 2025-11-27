@@ -6,25 +6,29 @@ $tempPath   = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), 'Micros
 try {
     Invoke-WebRequest -Uri $profileUrl -OutFile $tempPath -ErrorAction Stop
 
-    if (-not (Test-Path $localPath)) {
-        Copy-Item $tempPath $localPath -Force
-        Write-Host "Profile Changed; update successful."
-    }
-    else {
-        $localHash  = (Get-FileHash -Path $localPath -Algorithm SHA256).Hash
-        $remoteHash = (Get-FileHash -Path $tempPath -Algorithm SHA256).Hash
+    $localHash  = (Get-FileHash $localPath -Algorithm SHA256 -ErrorAction SilentlyContinue).Hash
+    $remoteHash = (Get-FileHash $tempPath -Algorithm SHA256).Hash
 
-        if ($localHash -ne $remoteHash) {
-            Copy-Item $tempPath $localPath -Force
+    if ($localHash -ne $remoteHash) {
+        Copy-Item $tempPath $localPath -Force
+
+        # Prevent recursive reloads
+        if (-not $env:PROFILE_RELOADING) {
+            $env:PROFILE_RELOADING = '1'
+            . $localPath
+            Write-host "Profile Updated"
+            Remove-Item Env:PROFILE_RELOADING
+            return   # ensures we don't run the rest of the old profile
         }
     }
-
-    Remove-Item $tempPath -ErrorAction SilentlyContinue
 }
 catch {
     Write-Verbose "Profile auto-update failed: $_"
 }
+
+Remove-Item $tempPath -ErrorAction SilentlyContinue
 # --- end auto-sync ---
+
 
 
 
