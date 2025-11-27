@@ -1,20 +1,26 @@
-# --- Auto-sync $PROFILE from GitHub (must be first) ---
+# --- Auto-sync $PROFILE from GitHub ---
 $profileUrl = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1'
 $localPath  = $PROFILE
 $tempPath   = Join-Path $env:TEMP 'Microsoft.PowerShell_profile.ps1.remote'
 
 try {
-    #Invoke-WebRequest -Uri $profileUrl -OutFile $tempPath -ErrorAction Stop
-    Invoke-WebRequest -Uri "$profileUrl?cb=$(Get-Random)" -OutFile $tempPath -Headers @{ "Cache-Control"="no-cache" } -ErrorAction Stop
+    # Build a clean cache-busted URL
+    $cacheBuster = Get-Random
+    $finalUrl    = "$profileUrl?cb=$cacheBuster"
+
+    # Debug line (leave it for now; you can comment it later)
+    Write-Host "[PROFILE] Fetching: $finalUrl" -ForegroundColor DarkGray
+
+    Invoke-WebRequest -Uri $finalUrl `
+                      -Headers @{ "Cache-Control" = "no-cache" } `
+                      -OutFile $tempPath -ErrorAction Stop
 
     $remoteHash = (Get-FileHash $tempPath -Algorithm SHA256).Hash
     $localHash  = (Get-FileHash $localPath -Algorithm SHA256 -ErrorAction SilentlyContinue).Hash
 
     if ($remoteHash -ne $localHash) {
-        Write-Host "[PROFILE] Remote change detected, updating and reloading..." -ForegroundColor DarkGreen -BackgroundColor White
+        Write-Host "[PROFILE] Remote change detected, updating and reloading..." -ForegroundColor Yellow
         Copy-Item $tempPath $localPath -Force
-
-        # Reload the *new* profile and stop executing the old one
         . $localPath
         Remove-Item $tempPath -ErrorAction SilentlyContinue
         return
@@ -27,6 +33,7 @@ finally {
     Remove-Item $tempPath -ErrorAction SilentlyContinue
 }
 # --- end auto-sync ---
+
 
 
 
