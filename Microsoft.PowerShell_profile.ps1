@@ -8,6 +8,7 @@ try {
 
     if (-not (Test-Path $localPath)) {
         Copy-Item $tempPath $localPath -Force
+        Write-Host "Profile Changed; update successful."
     }
     else {
         $localHash  = (Get-FileHash -Path $localPath -Algorithm SHA256).Hash
