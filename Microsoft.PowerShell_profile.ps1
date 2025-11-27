@@ -95,10 +95,8 @@ function toast {
     catch {
         # If toasts aren't available (or error), degrade gracefully
         Write-Host ("{0}: {1}" -f $Title, $Message)
-
     }
 }
-
 
 # =====================================================================
 # ComfyUI + AI helper functions
