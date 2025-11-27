@@ -10,7 +10,7 @@ try {
     $localHash  = (Get-FileHash $localPath -Algorithm SHA256 -ErrorAction SilentlyContinue).Hash
 
     if ($remoteHash -ne $localHash) {
-        Write-Host "[PROFILE] Remote change detected, updating and reloading..." -ForegroundColor Yellow
+        Write-Host "[PROFILE] Remote change detected, updating and reloading..." -ForegroundColor DarkGreen -BackgroundColor White
         Copy-Item $tempPath $localPath -Force
 
         # Reload the *new* profile and stop executing the old one
