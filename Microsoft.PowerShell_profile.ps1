@@ -94,6 +94,22 @@ function Update-WTTabContext {
     }
 }
 
+function Install-VenvDeactivationHook {
+    # Grab the current deactivate function (the one created by Activate.ps1)
+    $cmd = Get-Command deactivate -CommandType Function -ErrorAction SilentlyContinue
+    if (-not $cmd) { return }
+
+    # Keep the original scriptblock around
+    $script:OrigDeactivate = $cmd.ScriptBlock
+
+    # Wrap deactivate so it calls the original, then refreshes the tab title
+    function global:deactivate {
+        & $script:OrigDeactivate
+        Update-WTTabContext  # recompute title: ANTON / ANTON-ADMIN and venv tag
+    }
+}
+
+
 # Initialize title for this tab on startup
 Update-WTTabContext
 
@@ -137,10 +153,14 @@ function comfy {
         & "$venv\Scripts\Activate.ps1"
         Write-Host "🐍 Activated ComfyUI venv: $venv" -ForegroundColor Magenta
 
+        # Hook deactivate so it also refreshes the tab
+        Install-VenvDeactivationHook
+
         # Reflect active venv in tab title, but don't force ComfyUI label
         Update-WTTabContext
         return
     }
+
 
     # Running the server: orange tab + label
     Set-WTTabColor 3                    # orange-ish (brown/yellow)
@@ -200,12 +220,14 @@ function check-ai {
     }
 }
 
-# Training (kept lean; you still use sd-scripts outside Comfy)
 function train-venv {
     & "D:\AI\venv\sd-train2\Scripts\Activate.ps1"
     Write-Host "🐍 Activated training venv: D:\AI\venv\sd-train2" -ForegroundColor Magenta
+
+    Install-VenvDeactivationHook
     Update-WTTabContext
 }
+
 
 function train-lora {
     $loraDir = "E:\SD-Models\lora"
@@ -229,7 +251,6 @@ function sudo {
     & "C:\Windows\System32\sudo.exe" pwsh -Command ($Args -join " ")
 }
 
-# Generic venv activator: Use-Venv / venv "D:\AI\venv\whatever"
 function Use-Venv {
     param(
         [Parameter(Mandatory)][string]$Path
@@ -241,6 +262,8 @@ function Use-Venv {
     }
     & $activate
     Write-Host "🐍 Activated venv: $Path" -ForegroundColor Magenta
+
+    Install-VenvDeactivationHook
     Update-WTTabContext
 }
 Set-Alias venv Use-Venv -Force
