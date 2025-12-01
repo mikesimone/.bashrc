@@ -1,59 +1,73 @@
 
-# --- Self-update from GitHub (simple + robust) ---
-# Canonical location: https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1
+# --- Self-update from GitHub (once per session) ---
 
-$profileSyncEnv  = 'PROFILE_SYNCED'
-$profileSyncFlag = '1'
+# Where this profile lives in Git
+$profileUrlBase = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1'
+$localProfile   = $PROFILE
 
-# Only try once per process
+# Only do this once per PowerShell process
 if (-not $env:PROFILE_SYNCED) {
-    $env:PROFILE_SYNCED = $profileSyncFlag
-
-    $localProfile  = $PROFILE
-    $remoteProfile = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1'
-    $querySuffix   = "?cb=$([System.Random]::new().Next())"
-
-    $remoteUrl = $remoteProfile + $querySuffix
-    Write-Host "Testing replication"
-    Write-Host "[PROFILE] Fetching: $remoteUrl"
-
     try {
-        $remoteContent = Invoke-WebRequest -UseBasicParsing -Uri $remoteUrl -ErrorAction Stop | Select-Object -ExpandProperty Content
+        # Cache-buster query so GitHub doesn't hand you a stale file
+        $cb         = Get-Random
+        $profileUrl = "$profileUrlBase?cb=$cb"
 
-        if (-not [string]::IsNullOrWhiteSpace($remoteContent)) {
-            $currentContent = ''
-            if (Test-Path $localProfile) {
-                $currentContent = Get-Content -Path $localProfile -Raw
+        Write-Host "[PROFILE] Fetching: $profileUrl"
+
+        $tmp = "$localProfile.tmp"
+        Invoke-WebRequest -Uri $profileUrl -OutFile $tmp -UseBasicParsing
+
+        if ((Test-Path $tmp) -and (Get-Item $tmp).Length -gt 0) {
+
+            # Backup once per day in a safe folder
+            $backupDir = Join-Path (Split-Path $localProfile) 'profile_backups'
+            if (-not (Test-Path $backupDir)) {
+                New-Item -ItemType Directory -Path $backupDir | Out-Null
             }
 
-            if ($currentContent -ne $remoteContent) {
-                Write-Host "[PROFILE] Remote change detected, updating and reloading..."
+            $stamp      = Get-Date -Format 'yyyyMMdd'
+            $backupPath = Join-Path $backupDir ("Microsoft.PowerShell_profile.$stamp.ps1")
 
-                # Backup existing profile next to it, once per change
-                $backupPath = "$localProfile.bak"
-                if (Test-Path $localProfile) {
-                    Copy-Item -Path $localProfile -Destination $backupPath -Force
-                }
+            if (-not (Test-Path $backupPath) -and (Test-Path $localProfile)) {
+                Copy-Item $localProfile $backupPath -ErrorAction SilentlyContinue
+            }
 
-                # Overwrite with new content
-                $remoteContent | Set-Content -Path $localProfile -Encoding UTF8
+            # Compare hashes to avoid pointless churn
+            $oldHash = if (Test-Path $localProfile) { (Get-FileHash $localProfile).Hash } else { '' }
+            $newHash = (Get-FileHash $tmp).Hash
 
-                # Reload the updated profile
+            if ($oldHash -ne $newHash) {
+                Move-Item $tmp $localProfile -Force
+                Write-Host "[PROFILE] Remote change detected, updating and reloading..." -ForegroundColor Green
+
+                # Mark as synced BEFORE reloading so we don't recurse
+                $env:PROFILE_SYNCED = '1'
+
                 . $localProfile
                 return
             }
+            else {
+                Remove-Item $tmp -ErrorAction SilentlyContinue
+                Write-Host "[PROFILE] No remote changes; keeping existing profile." -ForegroundColor DarkGray
+            }
+        }
+        else {
+            Write-Host "[PROFILE] Downloaded file was empty; keeping existing profile." -ForegroundColor Yellow
+            Remove-Item $tmp -ErrorAction SilentlyContinue
         }
     }
     catch {
         Write-Host "[PROFILE] Auto-update failed: $($_.Exception.Message)" -ForegroundColor Yellow
     }
+
+    # Guard so we only do this once per PowerShell process
+    $env:PROFILE_SYNCED = '1'
 }
-
-
 
 ############################################
 # Minimal AI Profile — Comfy-first (portable)
 ############################################
+
 
 # --- Console/Rendering fixes (color + progress + UTF-8) ---
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
