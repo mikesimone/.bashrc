@@ -1,10 +1,10 @@
-# --- Auto-sync $PROFILE from GitHub (version 2025-11-30-C) -------------------
-$profileVersion = '2025-11-30-C'
+# --- Auto-sync $PROFILE from GitHub (version 2025-11-30-D) -------------------
+$profileVersion = '2025-11-30-D'
 Write-Host "[PROFILE] Profile version: $profileVersion"
 
-$localPath      = $PROFILE
-$tempPath       = Join-Path $env:TEMP 'Microsoft.PowerShell_profile.ps1.remote'
-$remoteBaseUrl  = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1'
+$localPath     = $PROFILE
+$tempPath      = Join-Path $env:TEMP 'Microsoft.PowerShell_profile.ps1.remote'
+$remoteBaseUrl = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1'
 
 # Only try to sync once per PowerShell process
 if (-not $env:PROFILE_SYNCED) {
@@ -26,15 +26,10 @@ if (-not $env:PROFILE_SYNCED) {
                           } else { '' }
 
             if ($remoteHash -ne $localHash) {
-                Write-Host "[PROFILE] Remote change detected, updating and reloading..." -ForegroundColor Yellow
+                Write-Host "[PROFILE] Remote change detected; updating local profile file. Restart PowerShell to load it." -ForegroundColor Yellow
                 Copy-Item $tempPath $localPath -Force
-
-                # Mark as synced BEFORE reloading to avoid recursion
-                $env:PROFILE_SYNCED = '1'
-
-                . $localPath
-                return
-            } else {
+            }
+            else {
                 Write-Host "[PROFILE] No remote changes; keeping existing profile." -ForegroundColor DarkGray
             }
         }
@@ -50,7 +45,6 @@ if (-not $env:PROFILE_SYNCED) {
     $env:PROFILE_SYNCED = '1'
 }
 # --- end auto-sync block -----------------------------------------------------
-
 
 
 ############################################
