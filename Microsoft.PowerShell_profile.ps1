@@ -14,7 +14,7 @@ if (-not $env:PROFILE_SYNCED) {
     $querySuffix   = "?cb=$([System.Random]::new().Next())"
 
     $remoteUrl = $remoteProfile + $querySuffix
-
+    Write-Host "Testing replication"
     Write-Host "[PROFILE] Fetching: $remoteUrl"
 
     try {
