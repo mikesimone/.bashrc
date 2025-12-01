@@ -1,40 +1,61 @@
 
-# --- Self-update from GitHub (idempotent per session) ---
-$profileSyncEnv = 'PROFILE_SYNCED'
-$profileSyncFlag = '1'
+# --- Self-update from GitHub (once per session) ---
+if (-not (Test-Path Env:PROFILE_SYNCED)) {
 
-if (-not $env:$profileSyncEnv) {
-    Write-Host "[PROFILE] Fetching latest profile from GitHub..." -ForegroundColor Cyan
+    # Where this profile lives in Git
+    $profileUrlBase = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1'
+    $localProfile   = $PROFILE
+
+    # Cache-buster query so GitHub doesn't hand you a stale file
+    $cb         = Get-Random
+    $profileUrl = "$profileUrlBase?cb=$cb"
+
+    Write-Host "[PROFILE] Fetching: $profileUrl"
+
     try {
-        $profileUrl  = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1'
-        $localProfile = $PROFILE
+        $tmp = "$localProfile.tmp"
 
-        $tmp = Join-Path ([System.IO.Path]::GetDirectoryName($localProfile)) 'Microsoft.PowerShell_profile.ps1.tmp'
         Invoke-WebRequest -Uri $profileUrl -OutFile $tmp -UseBasicParsing
 
-        if ((Get-Item $tmp).Length -gt 0) {
-            # backup once per day
+        if ((Test-Path $tmp) -and (Get-Item $tmp).Length -gt 0) {
+            # Backup once per day, in a safe folder
             $backupDir = Join-Path ([System.IO.Path]::GetDirectoryName($localProfile)) 'profile_backups'
-            if (-not (Test-Path $backupDir)) { New-Item -ItemType Directory -Path $backupDir | Out-Null }
+            if (-not (Test-Path $backupDir)) {
+                New-Item -ItemType Directory -Path $backupDir | Out-Null
+            }
 
-            $stamp = (Get-Date -Format 'yyyyMMdd')
-            $backupPath = Join-Path $backupDir "Microsoft.PowerShell_profile.$stamp.ps1"
+            $stamp      = Get-Date -Format 'yyyyMMdd'
+            $backupPath = Join-Path $backupDir ("Microsoft.PowerShell_profile.$stamp.ps1")
+
             if (-not (Test-Path $backupPath)) {
                 Copy-Item $localProfile $backupPath -ErrorAction SilentlyContinue
             }
 
-            Move-Item $tmp $localProfile -Force
-            Write-Host "[PROFILE] Updated from GitHub." -ForegroundColor Green
+            # If file content actually changed, replace & reload
+            $oldHash = if (Test-Path $localProfile) { (Get-FileHash $localProfile).Hash } else { '' }
+            $newHash = (Get-FileHash $tmp).Hash
+
+            if ($oldHash -ne $newHash) {
+                Move-Item $tmp $localProfile -Force
+                Write-Host "[PROFILE] Remote change detected, updating and reloading..." -ForegroundColor Green
+                $env:PROFILE_SYNCED = '1'
+                . $localProfile
+                return
+            } else {
+                Remove-Item $tmp -ErrorAction SilentlyContinue
+                Write-Host "[PROFILE] No remote changes; keeping existing profile." -ForegroundColor DarkGray
+            }
         } else {
-            Write-Host "[PROFILE] Downloaded file was empty, keeping existing profile." -ForegroundColor Yellow
+            Write-Host "[PROFILE] Downloaded file was empty; keeping existing profile." -ForegroundColor Yellow
             Remove-Item $tmp -ErrorAction SilentlyContinue
         }
-
-        $env:$profileSyncEnv = $profileSyncFlag
     }
     catch {
-        Write-Host "[PROFILE] GitHub update failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "[PROFILE] Auto-update failed: $($_.Exception.Message)" -ForegroundColor Yellow
     }
+
+    # Guard so we only do this once per PowerShell process
+    $env:PROFILE_SYNCED = '1'
 }
 
 
