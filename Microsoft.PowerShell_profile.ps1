@@ -13,6 +13,7 @@ if (-not $env:PROFILE_SYNCED) {
         $profileUrl = "$profileUrlBase?cb=$cb"
 
         Write-Host "[PROFILE] Fetching: $profileUrl"
+        Write-Host "Testing"
 
         $tmp = "$localProfile.tmp"
         Invoke-WebRequest -Uri $profileUrl -OutFile $tmp -UseBasicParsing
