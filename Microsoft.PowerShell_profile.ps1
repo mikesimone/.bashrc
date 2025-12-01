@@ -2,6 +2,7 @@
 # --- Auto-sync $PROFILE from GitHub (do not edit this block) ------------------
 if (-not $env:PROFILE_SYNCED) {
     $env:PROFILE_SYNCED = "1"
+    WRite-host "Synced Profile"
 
     
 
