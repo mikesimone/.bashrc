@@ -1,35 +1,92 @@
+# =============================================================================
+# PROFILE AUTO-SYNC BLOCK — v2025-11-30-A
+# =============================================================================
+# This profile auto-updates itself from GitHub exactly once per PowerShell
+# session. Includes version stamping, cache-busting, safe temp download,
+# recursion protection, and daily snapshot backups.
+# =============================================================================
 
-# --- Auto-sync $PROFILE from GitHub (do not edit this block) ------------------
-$localPath = $PROFILE
-$tempPath  = Join-Path $env:TEMP 'Microsoft.PowerShell_profile.ps1.remote'
+# Where this profile is stored on disk
+$localProfile = $PROFILE
+
+# Raw GitHub URL (no cb attached yet)
+$remoteBase = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1'
+
+# Environment flag to prevent infinite recursion
+$syncFlag = 'PROFILE_SYNCED'
+
+# If we already synced in this session: bail out early
+if ($env:$syncFlag) {
+    return
+}
 
 try {
-    # Build a clean, cache-busted URL so GitHub raw never serves a stale copy
-    $cacheBuster = Get-Random
-    $finalUrl    = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1?cb={0}' -f $cacheBuster
+    # Add version stamp for debugging
+    Write-Host "[PROFILE] Running auto-sync block v2025-11-30-A" -ForegroundColor DarkCyan
 
-    Write-Host "[PROFILE] Fetching: $finalUrl" -ForegroundColor DarkGray
+    # Cache buster to kill all CDN reuse
+    $cb = Get-Random
+    $remoteUrl = "$remoteBase?cb=$cb"
+    Write-Host "[PROFILE] Fetching: $remoteUrl" -ForegroundColor DarkGray
 
-    Invoke-WebRequest -Uri $finalUrl -OutFile $tempPath -Headers @{ 'Cache-Control' = 'no-cache' } -ErrorAction Stop
+    # Temp download target
+    $tempProfile = Join-Path $env:TEMP "profile.remote.$cb.ps1"
 
-    $remoteHash = (Get-FileHash $tempPath -Algorithm SHA256).Hash
-    $localHash  = (Get-FileHash $localPath -Algorithm SHA256 -ErrorAction SilentlyContinue).Hash
+    Invoke-WebRequest -Uri $remoteUrl -OutFile $tempProfile -UseBasicParsing -Headers @{
+        'Cache-Control' = 'no-cache'
+        'Pragma'        = 'no-cache'
+    }
 
-    if ($remoteHash -ne $localHash) {
-        Write-Host "[PROFILE] Remote change detected, updating and reloading..." -ForegroundColor Yellow
-        Copy-Item $tempPath $localPath -Force
-        . $localPath   # reload the new profile immediately
-        Remove-Item $tempPath -ErrorAction SilentlyContinue
-        return
+    # Validation: ensure download succeeded and is not empty
+    if (!(Test-Path $tempProfile) -or (Get-Item $tempProfile).Length -lt 50) {
+        Write-Host "[PROFILE] Remote download empty or invalid — skipping update." -ForegroundColor Yellow
+        Remove-Item $tempProfile -ErrorAction SilentlyContinue
+    }
+    else {
+        # Compute hashes to detect real differences
+        $localHash  = if (Test-Path $localProfile) {
+            (Get-FileHash $localProfile -Algorithm SHA256).Hash
+        } else { '' }
+
+        $remoteHash = (Get-FileHash $tempProfile -Algorithm SHA256).Hash
+
+        if ($localHash -ne $remoteHash) {
+            Write-Host "[PROFILE] Remote change detected — updating profile." -ForegroundColor Green
+
+            # Take a daily backup before overwriting
+            $backupDir = Join-Path (Split-Path $localProfile) 'profile_backups'
+            if (!(Test-Path $backupDir)) { New-Item -ItemType Directory -Path $backupDir | Out-Null }
+
+            $backupFile = Join-Path $backupDir ("Microsoft.PowerShell_profile.{0}.ps1" -f (Get-Date -Format 'yyyyMMdd'))
+            if (!(Test-Path $backupFile) -and (Test-Path $localProfile)) {
+                Copy-Item $localProfile $backupFile -Force -ErrorAction SilentlyContinue
+            }
+
+            # Replace and reload
+            Copy-Item $tempProfile $localProfile -Force
+            $env:$syncFlag = "1"
+            Write-Host "[PROFILE] Reloading updated profile..." -ForegroundColor Cyan
+            . $localProfile
+            return
+        }
+        else {
+            Write-Host "[PROFILE] No changes detected." -ForegroundColor DarkGray
+        }
+
+        Remove-Item $tempProfile -ErrorAction SilentlyContinue
     }
 }
 catch {
-    Write-Host "[PROFILE] Auto-update failed: $($_.Exception.Message)" -ForegroundColor DarkYellow
+    Write-Host "[PROFILE] Auto-sync failed: $($_.Exception.Message)" -ForegroundColor DarkYellow
 }
-finally {
-    Remove-Item $tempPath -ErrorAction SilentlyContinue
-}
-# --- end auto-sync -----------------------------------------------------------
+
+# Mark this session as synced
+$env:$syncFlag = "1"
+
+# =============================================================================
+# END PROFILE AUTO-SYNC BLOCK
+# =============================================================================
+
 
 
 ############################################
