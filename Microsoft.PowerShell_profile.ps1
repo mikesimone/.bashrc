@@ -1,62 +1,54 @@
 
-# --- Self-update from GitHub (once per session) ---
-if (-not (Test-Path Env:PROFILE_SYNCED)) {
+# --- Self-update from GitHub (simple + robust) ---
+# Canonical location: https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1
 
-    # Where this profile lives in Git
-    $profileUrlBase = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1'
-    $localProfile   = $PROFILE
+$profileSyncEnv  = 'PROFILE_SYNCED'
+$profileSyncFlag = '1'
 
-    # Cache-buster query so GitHub doesn't hand you a stale file
-    $cb         = Get-Random
-    $profileUrl = "$profileUrlBase?cb=$cb"
+# Only try once per process
+if (-not $env:PROFILE_SYNCED) {
+    $env:PROFILE_SYNCED = $profileSyncFlag
 
-    Write-Host "[PROFILE] Fetching: $profileUrl"
+    $localProfile  = $PROFILE
+    $remoteProfile = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1'
+    $querySuffix   = "?cb=$([System.Random]::new().Next())"
+
+    $remoteUrl = $remoteProfile + $querySuffix
+
+    Write-Host "[PROFILE] Fetching: $remoteUrl"
 
     try {
-        $tmp = "$localProfile.tmp"
+        $remoteContent = Invoke-WebRequest -UseBasicParsing -Uri $remoteUrl -ErrorAction Stop | Select-Object -ExpandProperty Content
 
-        Invoke-WebRequest -Uri $profileUrl -OutFile $tmp -UseBasicParsing
-
-        if ((Test-Path $tmp) -and (Get-Item $tmp).Length -gt 0) {
-            # Backup once per day, in a safe folder
-            $backupDir = Join-Path ([System.IO.Path]::GetDirectoryName($localProfile)) 'profile_backups'
-            if (-not (Test-Path $backupDir)) {
-                New-Item -ItemType Directory -Path $backupDir | Out-Null
+        if (-not [string]::IsNullOrWhiteSpace($remoteContent)) {
+            $currentContent = ''
+            if (Test-Path $localProfile) {
+                $currentContent = Get-Content -Path $localProfile -Raw
             }
 
-            $stamp      = Get-Date -Format 'yyyyMMdd'
-            $backupPath = Join-Path $backupDir ("Microsoft.PowerShell_profile.$stamp.ps1")
+            if ($currentContent -ne $remoteContent) {
+                Write-Host "[PROFILE] Remote change detected, updating and reloading..."
 
-            if (-not (Test-Path $backupPath)) {
-                Copy-Item $localProfile $backupPath -ErrorAction SilentlyContinue
-            }
+                # Backup existing profile next to it, once per change
+                $backupPath = "$localProfile.bak"
+                if (Test-Path $localProfile) {
+                    Copy-Item -Path $localProfile -Destination $backupPath -Force
+                }
 
-            # If file content actually changed, replace & reload
-            $oldHash = if (Test-Path $localProfile) { (Get-FileHash $localProfile).Hash } else { '' }
-            $newHash = (Get-FileHash $tmp).Hash
+                # Overwrite with new content
+                $remoteContent | Set-Content -Path $localProfile -Encoding UTF8
 
-            if ($oldHash -ne $newHash) {
-                Move-Item $tmp $localProfile -Force
-                Write-Host "[PROFILE] Remote change detected, updating and reloading..." -ForegroundColor Green
-                $env:PROFILE_SYNCED = '1'
+                # Reload the updated profile
                 . $localProfile
                 return
-            } else {
-                Remove-Item $tmp -ErrorAction SilentlyContinue
-                Write-Host "[PROFILE] No remote changes; keeping existing profile." -ForegroundColor DarkGray
             }
-        } else {
-            Write-Host "[PROFILE] Downloaded file was empty; keeping existing profile." -ForegroundColor Yellow
-            Remove-Item $tmp -ErrorAction SilentlyContinue
         }
     }
     catch {
         Write-Host "[PROFILE] Auto-update failed: $($_.Exception.Message)" -ForegroundColor Yellow
     }
-
-    # Guard so we only do this once per PowerShell process
-    $env:PROFILE_SYNCED = '1'
 }
+
 
 
 ############################################
