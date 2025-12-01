@@ -1,32 +1,40 @@
+
 # --- Auto-sync $PROFILE from GitHub (do not edit this block) ------------------
-$localPath = $PROFILE
-$tempPath  = Join-Path $env:TEMP 'Microsoft.PowerShell_profile.ps1.remote'
+if (-not $env:PROFILE_SYNCED) {
+    $env:PROFILE_SYNCED = "1"
 
-try {
-    # Build a clean, cache-busted URL so GitHub raw never serves a stale copy
-    $cacheBuster = Get-Random
-    $finalUrl    = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1?cb={0}' -f $cacheBuster
+    
 
-    Write-Host "[PROFILE] Fetching: $finalUrl" -ForegroundColor DarkGray
 
-    Invoke-WebRequest -Uri $finalUrl -OutFile $tempPath -Headers @{ 'Cache-Control' = 'no-cache' } -ErrorAction Stop
+    $localPath = $PROFILE
+    $tempPath  = Join-Path $env:TEMP 'Microsoft.PowerShell_profile.ps1.remote'
 
-    $remoteHash = (Get-FileHash $tempPath -Algorithm SHA256).Hash
-    $localHash  = (Get-FileHash $localPath -Algorithm SHA256 -ErrorAction SilentlyContinue).Hash
+    try {
+        # Build a clean, cache-busted URL so GitHub raw never serves a stale copy
+        $cacheBuster = Get-Random
+        $finalUrl    = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1?cb={0}' -f $cacheBuster
+    
+        Write-Host "[PROFILE] Fetching: $finalUrl" -ForegroundColor DarkGray
 
-    if ($remoteHash -ne $localHash) {
-        Write-Host "[PROFILE] Remote change detected, updating and reloading..." -ForegroundColor Yellow
-        Copy-Item $tempPath $localPath -Force
-        . $localPath   # reload the new profile immediately
-        Remove-Item $tempPath -ErrorAction SilentlyContinue
-        return
+        Invoke-WebRequest -Uri $finalUrl -OutFile $tempPath -Headers @{ 'Cache-Control' = 'no-cache' } -ErrorAction Stop
+    
+        $remoteHash = (Get-FileHash $tempPath -Algorithm SHA256).Hash
+        $localHash  = (Get-FileHash $localPath -Algorithm SHA256 -ErrorAction SilentlyContinue).Hash
+    
+        if ($remoteHash -ne $localHash) {
+            Write-Host "[PROFILE] Remote change detected, updating and reloading..." -ForegroundColor Yellow
+            Copy-Item $tempPath $localPath -Force
+            . $localPath   # reload the new profile immediately
+            Remove-Item $tempPath -ErrorAction SilentlyContinue
+            return
+        }
     }
-}
-catch {
-    Write-Host "[PROFILE] Auto-update failed: $($_.Exception.Message)" -ForegroundColor DarkYellow
-}
-finally {
-    Remove-Item $tempPath -ErrorAction SilentlyContinue
+    catch {
+        Write-Host "[PROFILE] Auto-update failed: $($_.Exception.Message)" -ForegroundColor DarkYellow
+    }
+    finally {
+        Remove-Item $tempPath -ErrorAction SilentlyContinue
+    }
 }
 # --- end auto-sync -----------------------------------------------------------
 
