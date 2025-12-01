@@ -1,61 +1,36 @@
 
-# --- Self-update from GitHub (once per session, no recursion) ---
+# --- Auto-sync $PROFILE from GitHub (do not edit this block) ------------------
+$localPath = $PROFILE
+$tempPath  = Join-Path $env:TEMP 'Microsoft.PowerShell_profile.ps1.remote'
 
-# Where this profile lives in GitHub
-$remoteProfileUrl = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1'
-$localProfile     = $PROFILE
+try {
+    # Build a clean, cache-busted URL so GitHub raw never serves a stale copy
+    $cacheBuster = Get-Random
+    $finalUrl    = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1?cb={0}' -f $cacheBuster
 
-if (-not $env:PROFILE_SYNCED) {
-    # Guard so we only do this once per PowerShell process
-    $env:PROFILE_SYNCED = '1'
+    Write-Host "[PROFILE] Fetching: $finalUrl" -ForegroundColor DarkGray
 
-    try {
-        # Cache-buster query so GitHub doesn't hand you a stale file
-        $cb        = Get-Random
-        $fetchUrl  = "$remoteProfileUrl?cb=$cb"
-        $tmp       = "$localProfile.tmp"
+    Invoke-WebRequest -Uri $finalUrl -OutFile $tempPath -Headers @{ 'Cache-Control' = 'no-cache' } -ErrorAction Stop
 
-        Write-Host "[PROFILE] Fetching: $fetchUrl"
+    $remoteHash = (Get-FileHash $tempPath -Algorithm SHA256).Hash
+    $localHash  = (Get-FileHash $localPath -Algorithm SHA256 -ErrorAction SilentlyContinue).Hash
 
-        Invoke-WebRequest -Uri $fetchUrl -OutFile $tmp -UseBasicParsing
-
-        if ((Test-Path $tmp) -and (Get-Item $tmp).Length -gt 0) {
-
-            # Backup once per day in a safe folder
-            $backupDir = Join-Path (Split-Path $localProfile) 'profile_backups'
-            if (-not (Test-Path $backupDir)) {
-                New-Item -ItemType Directory -Path $backupDir | Out-Null
-            }
-
-            $stamp      = Get-Date -Format 'yyyyMMdd'
-            $backupPath = Join-Path $backupDir ("Microsoft.PowerShell_profile.$stamp.ps1")
-
-            if (-not (Test-Path $backupPath) -and (Test-Path $localProfile)) {
-                Copy-Item $localProfile $backupPath -ErrorAction SilentlyContinue
-            }
-
-            # Compare hashes to avoid pointless churn
-            $oldHash = if (Test-Path $localProfile) { (Get-FileHash $localProfile).Hash } else { '' }
-            $newHash = (Get-FileHash $tmp).Hash
-
-            if ($oldHash -ne $newHash) {
-                Move-Item $tmp $localProfile -Force
-                Write-Host "[PROFILE] Remote change detected. New profile will load next PowerShell session." -ForegroundColor Green
-            }
-            else {
-                Remove-Item $tmp -ErrorAction SilentlyContinue
-                Write-Host "[PROFILE] No remote changes; keeping existing profile." -ForegroundColor DarkGray
-            }
-        }
-        else {
-            Write-Host "[PROFILE] Downloaded file was empty; keeping existing profile." -ForegroundColor Yellow
-            Remove-Item $tmp -ErrorAction SilentlyContinue
-        }
-    }
-    catch {
-        Write-Host "[PROFILE] Auto-update failed: $($_.Exception.Message)" -ForegroundColor Yellow
+    if ($remoteHash -ne $localHash) {
+        Write-Host "[PROFILE] Remote change detected, updating and reloading..." -ForegroundColor Yellow
+        Copy-Item $tempPath $localPath -Force
+        . $localPath   # reload the new profile immediately
+        Remove-Item $tempPath -ErrorAction SilentlyContinue
+        return
     }
 }
+catch {
+    Write-Host "[PROFILE] Auto-update failed: $($_.Exception.Message)" -ForegroundColor DarkYellow
+}
+finally {
+    Remove-Item $tempPath -ErrorAction SilentlyContinue
+}
+# --- end auto-sync -----------------------------------------------------------
+
 
 ############################################
 # Minimal AI Profile — Comfy-first (portable)
