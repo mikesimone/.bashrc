@@ -1,22 +1,23 @@
 
-# --- Self-update from GitHub (once per session) ---
+# --- Self-update from GitHub (once per session, no recursion) ---
 
-# Where this profile lives in Git
-$profileUrlBase = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1'
-$localProfile   = $PROFILE
+# Where this profile lives in GitHub
+$remoteProfileUrl = 'https://raw.githubusercontent.com/mikesimone/.bashrc/refs/heads/main/Microsoft.PowerShell_profile.ps1'
+$localProfile     = $PROFILE
 
-# Only do this once per PowerShell process
 if (-not $env:PROFILE_SYNCED) {
+    # Guard so we only do this once per PowerShell process
+    $env:PROFILE_SYNCED = '1'
+
     try {
         # Cache-buster query so GitHub doesn't hand you a stale file
-        $cb         = Get-Random
-        $profileUrl = "$profileUrlBase?cb=$cb"
+        $cb        = Get-Random
+        $fetchUrl  = "$remoteProfileUrl?cb=$cb"
+        $tmp       = "$localProfile.tmp"
 
-        Write-Host "[PROFILE] Fetching: $profileUrl"
-        Write-Host "Testing"
+        Write-Host "[PROFILE] Fetching: $fetchUrl"
 
-        $tmp = "$localProfile.tmp"
-        Invoke-WebRequest -Uri $profileUrl -OutFile $tmp -UseBasicParsing
+        Invoke-WebRequest -Uri $fetchUrl -OutFile $tmp -UseBasicParsing
 
         if ((Test-Path $tmp) -and (Get-Item $tmp).Length -gt 0) {
 
@@ -39,13 +40,7 @@ if (-not $env:PROFILE_SYNCED) {
 
             if ($oldHash -ne $newHash) {
                 Move-Item $tmp $localProfile -Force
-                Write-Host "[PROFILE] Remote change detected, updating and reloading..." -ForegroundColor Green
-
-                # Mark as synced BEFORE reloading so we don't recurse
-                $env:PROFILE_SYNCED = '1'
-
-                . $localProfile
-                return
+                Write-Host "[PROFILE] Remote change detected. New profile will load next PowerShell session." -ForegroundColor Green
             }
             else {
                 Remove-Item $tmp -ErrorAction SilentlyContinue
@@ -60,9 +55,6 @@ if (-not $env:PROFILE_SYNCED) {
     catch {
         Write-Host "[PROFILE] Auto-update failed: $($_.Exception.Message)" -ForegroundColor Yellow
     }
-
-    # Guard so we only do this once per PowerShell process
-    $env:PROFILE_SYNCED = '1'
 }
 
 ############################################
